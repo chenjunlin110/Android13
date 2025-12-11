@@ -17,7 +17,6 @@ import com.example.android.model.DataManager;
 import com.example.android.model.Photo;
 import com.example.android.model.Tag;
 import com.example.android.model.UserData;
-import com.example.android.SimpleItemSelectedListener;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -40,8 +39,6 @@ public class SearchActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_search);
 
-        userData = DataManager.load(this);
-
         spinnerType1 = findViewById(R.id.spinner_type1);
         spinnerType2 = findViewById(R.id.spinner_type2);
         spinnerConnector = findViewById(R.id.spinner_connector);
@@ -50,7 +47,6 @@ public class SearchActivity extends AppCompatActivity {
         resultsView = findViewById(R.id.search_results);
 
         setupSpinners();
-        setupAutoComplete();
 
         adapter = new SearchResultAdapter(results, item -> {
             Intent intent = new Intent(SearchActivity.this, PhotoViewActivity.class);
@@ -63,6 +59,14 @@ public class SearchActivity extends AppCompatActivity {
 
         Button run = findViewById(R.id.btn_search_run);
         run.setOnClickListener(v -> runSearch());
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        // Reload data every time we return to this activity
+        userData = DataManager.load(this);
+        setupAutoComplete();
     }
 
     private void setupSpinners() {
@@ -78,28 +82,42 @@ public class SearchActivity extends AppCompatActivity {
                 new String[]{"OR", "AND"});
         connectorAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         spinnerConnector.setAdapter(connectorAdapter);
+
+        // Update autocomplete when spinner selection changes
+        spinnerType1.setOnItemSelectedListener(new SimpleItemSelectedListener(this::updateAutoComplete1));
+        spinnerType2.setOnItemSelectedListener(new SimpleItemSelectedListener(this::updateAutoComplete2));
     }
 
     private void setupAutoComplete() {
-        ArrayAdapter<String> personAdapter = new ArrayAdapter<>(this,
-                android.R.layout.simple_list_item_1,
-                userData.getTagValues(Tag.TagType.PERSON));
-        ArrayAdapter<String> locationAdapter = new ArrayAdapter<>(this,
-                android.R.layout.simple_list_item_1,
-                userData.getTagValues(Tag.TagType.LOCATION));
-        inputValue1.setAdapter(locationAdapter);
-        inputValue2.setAdapter(locationAdapter);
+        updateAutoComplete1();
+        updateAutoComplete2();
+        
+        // Set threshold to 1 character for autocomplete to trigger
+        inputValue1.setThreshold(1);
+        inputValue2.setThreshold(1);
+    }
 
-        spinnerType1.setOnItemSelectedListener(new SimpleItemSelectedListener(() -> {
-            inputValue1.setAdapter(isPerson(spinnerType1) ? personAdapter : locationAdapter);
-        }));
-        spinnerType2.setOnItemSelectedListener(new SimpleItemSelectedListener(() -> {
-            inputValue2.setAdapter(isPerson(spinnerType2) ? personAdapter : locationAdapter);
-        }));
+    private void updateAutoComplete1() {
+        if (userData == null) return;
+        Tag.TagType type = getTypeFromSpinner(spinnerType1);
+        List<String> values = userData.getTagValues(type);
+        ArrayAdapter<String> acAdapter = new ArrayAdapter<>(this,
+                android.R.layout.simple_list_item_1, values);
+        inputValue1.setAdapter(acAdapter);
+    }
+
+    private void updateAutoComplete2() {
+        if (userData == null) return;
+        Tag.TagType type = getTypeFromSpinner(spinnerType2);
+        List<String> values = userData.getTagValues(type);
+        ArrayAdapter<String> acAdapter = new ArrayAdapter<>(this,
+                android.R.layout.simple_list_item_1, values);
+        inputValue2.setAdapter(acAdapter);
     }
 
     private boolean isPerson(Spinner spinner) {
-        return "person".equalsIgnoreCase(spinner.getSelectedItem().toString());
+        Object item = spinner.getSelectedItem();
+        return item != null && "person".equalsIgnoreCase(item.toString());
     }
 
     private Tag.TagType getTypeFromSpinner(Spinner spinner) {
@@ -117,26 +135,36 @@ public class SearchActivity extends AppCompatActivity {
         String connector = spinnerConnector.getSelectedItem().toString().toUpperCase(Locale.ROOT);
         String val2 = inputValue2.getText().toString().trim();
 
+        // Clear previous results
         results.clear();
-        // manual search to retain album info
+        
+        // Search across ALL albums and collect ALL matching photos
         for (Album album : userData.getAlbums()) {
             List<Photo> photos = album.getPhotos();
             for (int i = 0; i < photos.size(); i++) {
                 Photo p = photos.get(i);
+                
+                // hasTag uses prefix matching (startsWith)
                 boolean m1 = p.hasTag(t1, val1);
                 boolean match;
+                
                 if (val2.isEmpty()) {
+                    // Single tag search
                     match = m1;
                 } else {
+                    // Two tag search with AND/OR
                     boolean m2 = p.hasTag(t2, val2);
                     match = "AND".equals(connector) ? (m1 && m2) : (m1 || m2);
                 }
+                
                 if (match) {
+                    // Add every matching photo from every album
                     results.add(new SearchResultAdapter.ResultItem(album.getName(), i, p));
                 }
             }
         }
+        
         adapter.notifyDataSetChanged();
-        Toast.makeText(this, "Found " + results.size() + " photos", Toast.LENGTH_SHORT).show();
+        Toast.makeText(this, "Found " + results.size() + " photo(s)", Toast.LENGTH_SHORT).show();
     }
 }
