@@ -50,9 +50,6 @@ Android photo album manager in Java (target API 36, baseline 1080x2400 420dpi). 
 ## Known Fix (AI-assisted)
 - Persistence issue (photos disappearing after returning) was diagnosed with AI assistance: MainActivity's cached in-memory data was overwriting saved data on pause. Reloading from storage in `onResume` prevents the overwrite and keeps newly added photos.
 
-## Troubleshooting
-- Photo count not updated after returning: data reloads in `onResume`; if still stale, clear app data and retry.
-- Photo missing or not showing: ensure the picker granted read permission and the original image file wasn't moved/deleted; reselect to refresh URI permissions if needed.
 
 ## Manual Verification
 1) Create an album, import a few images, return to main and confirm counts update.
