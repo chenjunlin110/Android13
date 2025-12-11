@@ -55,7 +55,7 @@ public class Photo implements Serializable {
         if (value == null) return false;
         String norm = value.trim().toLowerCase(Locale.ROOT);
         for (Tag t : tags) {
-            if (t.getType() == type && t.getNormalizedValue().equals(norm)) {
+            if (t.getType() == type && t.getNormalizedValue().startsWith(norm)) {
                 return true;
             }
         }

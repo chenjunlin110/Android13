@@ -38,11 +38,14 @@ public class AlbumActivity extends AppCompatActivity {
                 }
                 Uri uri = result.getData().getData();
                 if (uri == null) return;
-                // persist permission
-                final int flags = result.getData().getFlags()
+                // persist permission so the app can reopen after restarts
+                int persistFlags = result.getData().getFlags()
                         & (Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+                persistFlags |= Intent.FLAG_GRANT_READ_URI_PERMISSION
+                        | Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+                        | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION;
                 try {
-                    getContentResolver().takePersistableUriPermission(uri, flags);
+                    getContentResolver().takePersistableUriPermission(uri, persistFlags);
                 } catch (Exception ignored) {}
 
                 String filename = getDisplayName(uri);
@@ -97,6 +100,9 @@ public class AlbumActivity extends AppCompatActivity {
         Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
         intent.addCategory(Intent.CATEGORY_OPENABLE);
         intent.setType("image/*");
+        intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION
+                | Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+                | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
         pickImageLauncher.launch(intent);
     }
 

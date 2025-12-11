@@ -46,6 +46,7 @@ public class MainActivity extends AppCompatActivity {
             public void onDelete(Album album) {
                 userData.removeAlbum(album.getName());
                 adapter.notifyDataSetChanged();
+                DataManager.save(MainActivity.this, userData);
             }
         });
         albumList.setAdapter(adapter);
@@ -65,6 +66,34 @@ public class MainActivity extends AppCompatActivity {
     }
 
     @Override
+    protected void onResume() {
+        super.onResume();
+        // Reload latest data so changes made in other activities (e.g., adding photos) are reflected.
+        userData = DataManager.load(this);
+        adapter = new AlbumAdapter(userData.getAlbums(), new AlbumAdapter.Listener() {
+            @Override
+            public void onOpen(Album album) {
+                Intent intent = new Intent(MainActivity.this, AlbumActivity.class);
+                intent.putExtra(AlbumActivity.EXTRA_ALBUM_NAME, album.getName());
+                startActivity(intent);
+            }
+
+            @Override
+            public void onRename(Album album) {
+                showRenameDialog(album);
+            }
+
+            @Override
+            public void onDelete(Album album) {
+                userData.removeAlbum(album.getName());
+                adapter.notifyDataSetChanged();
+                DataManager.save(MainActivity.this, userData);
+            }
+        });
+        albumList.setAdapter(adapter);
+    }
+
+    @Override
     protected void onPause() {
         super.onPause();
         DataManager.save(this, userData);
@@ -79,6 +108,7 @@ public class MainActivity extends AppCompatActivity {
                     String name = input.getText().toString().trim();
                     if (userData.addAlbum(name)) {
                         adapter.notifyDataSetChanged();
+                        DataManager.save(this, userData);
                     } else {
                         Toast.makeText(this, "Invalid or duplicate name", Toast.LENGTH_SHORT).show();
                     }
@@ -97,6 +127,7 @@ public class MainActivity extends AppCompatActivity {
                     String newName = input.getText().toString().trim();
                     if (userData.renameAlbum(album.getName(), newName)) {
                         adapter.notifyDataSetChanged();
+                        DataManager.save(this, userData);
                     } else {
                         Toast.makeText(this, "Invalid or duplicate name", Toast.LENGTH_SHORT).show();
                     }
